@@ -1,0 +1,6 @@
+##fileformat=VCFv4.2
+##source=Test
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
+chr1	1234	rs1	A	T	.	.	.	GT
+chr1	1235	rs2	A	C	.	.	.	GT
+chr22	10000	rs3	A	T	.	.	.	GT
