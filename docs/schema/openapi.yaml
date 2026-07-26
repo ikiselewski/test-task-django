@@ -1,0 +1,118 @@
+openapi: 3.0.3
+info:
+  title: Genotype API
+  description: |
+    HTTP API for querying genotype records loaded from VCF files.
+
+    Genotypes are stored in SQLite and can be filtered by chromosome and
+    genomic coordinate.
+  version: 1.0.0
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local development server
+
+tags:
+  - name: genotypes
+    description: Query genotype variants
+
+paths:
+  /api/get_genotypes/:
+    get:
+      tags:
+        - genotypes
+      operationId: getGenotypes
+      summary: List genotypes
+      description: |
+        Returns genotype records from the database. Both query parameters are
+        optional; when omitted, all stored genotypes are returned.
+
+        - `chromosome` — exact match (e.g. `chr1`)
+        - `coordinate` — exact match on genomic position (integer). Non-integer
+          values are ignored and do not cause an error.
+      parameters:
+        - name: chromosome
+          in: query
+          required: false
+          description: Chromosome name filter (exact match).
+          schema:
+            type: string
+            maxLength: 10
+            example: chr1
+        - name: coordinate
+          in: query
+          required: false
+          description: Genomic position filter (exact match).
+          schema:
+            type: integer
+            example: 1234
+      responses:
+        '200':
+          description: Successful response with a list of genotypes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenotypeListResponse'
+              examples:
+                filtered:
+                  summary: Filtered by chromosome and coordinate
+                  value:
+                    genotypes:
+                      - chromosome: chr1
+                        coordinate: 1234
+                        ref: A
+                        alt: T
+                        gt: '0/1'
+                empty:
+                  summary: No matching records
+                  value:
+                    genotypes: []
+
+components:
+  schemas:
+    Genotype:
+      type: object
+      description: A single genotype / variant record from a VCF load.
+      required:
+        - chromosome
+        - coordinate
+        - ref
+        - alt
+      properties:
+        chromosome:
+          type: string
+          maxLength: 10
+          description: Chromosome identifier (e.g. `chr1`, `1`, `X`).
+          example: chr1
+        coordinate:
+          type: integer
+          description: 1-based genomic position (VCF POS).
+          example: 1234
+        ref:
+          type: string
+          maxLength: 50
+          description: Reference allele (VCF REF).
+          example: A
+        alt:
+          type: string
+          maxLength: 50
+          description: Alternate allele(s) (VCF ALT).
+          example: T
+        gt:
+          type: string
+          nullable: true
+          maxLength: 10
+          description: Genotype call from the sample FORMAT field (e.g. `0/1`).
+          example: '0/1'
+      additionalProperties: false
+
+    GenotypeListResponse:
+      type: object
+      required:
+        - genotypes
+      properties:
+        genotypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Genotype'
+      additionalProperties: false
