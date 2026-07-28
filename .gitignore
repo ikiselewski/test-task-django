@@ -1,1 +1,14 @@
 *.vcf.gz
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+.DS_Store
+.idea/
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/

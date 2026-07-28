@@ -4,9 +4,14 @@ info:
   description: |
     HTTP API for querying genotype records loaded from VCF files.
 
-    Genotypes are stored in SQLite and can be filtered by chromosome and
-    genomic coordinate.
-  version: 1.0.0
+    Data is stored in a normalized biological schema:
+
+      Species → Assembly → Chromosome → Coordinate
+      Sample → Genotype (ref/alt alleles + GT)
+
+    Coordinates are assembly-specific (e.g. GRCh38). Multiple samples
+    (different people / VCF files) are supported.
+  version: 1.1.0
 
 servers:
   - url: http://127.0.0.1:8000
@@ -14,7 +19,7 @@ servers:
 
 tags:
   - name: genotypes
-    description: Query genotype variants
+    description: Query genotype calls
 
 paths:
   /api/get_genotypes/:
@@ -24,28 +29,44 @@ paths:
       operationId: getGenotypes
       summary: List genotypes
       description: |
-        Returns genotype records from the database. Both query parameters are
+        Returns genotype records from the database. All query parameters are
         optional; when omitted, all stored genotypes are returned.
 
-        - `chromosome` — exact match (e.g. `chr1`)
-        - `coordinate` — exact match on genomic position (integer). Non-integer
+        - `chromosome` — exact contig match (e.g. `chr1`)
+        - `coordinate` — exact 1-based genomic position (integer). Non-integer
           values are ignored and do not cause an error.
+        - `sample` — sample / individual name (e.g. `HG001`)
+        - `assembly` — reference assembly name (e.g. `GRCh38`)
       parameters:
         - name: chromosome
           in: query
           required: false
-          description: Chromosome name filter (exact match).
+          description: Chromosome / contig name filter (exact match).
           schema:
             type: string
-            maxLength: 10
+            maxLength: 50
             example: chr1
         - name: coordinate
           in: query
           required: false
-          description: Genomic position filter (exact match).
+          description: Genomic position filter (exact match, VCF POS).
           schema:
             type: integer
             example: 1234
+        - name: sample
+          in: query
+          required: false
+          description: Sample name filter (exact match).
+          schema:
+            type: string
+            example: HG001
+        - name: assembly
+          in: query
+          required: false
+          description: Reference assembly filter (exact match).
+          schema:
+            type: string
+            example: GRCh38
       responses:
         '200':
           description: Successful response with a list of genotypes.
@@ -63,26 +84,36 @@ paths:
                         ref: A
                         alt: T
                         gt: '0/1'
+                        rsid: rs1
+                        sample: HG001
+                        assembly: GRCh38
+                        species: Homo sapiens
                 empty:
                   summary: No matching records
                   value:
                     genotypes: []
+        '405':
+          description: Method not allowed (only GET is supported).
 
 components:
   schemas:
     Genotype:
       type: object
-      description: A single genotype / variant record from a VCF load.
+      description: |
+        A genotype call for one sample at one genomic coordinate, loaded from VCF.
       required:
         - chromosome
         - coordinate
         - ref
         - alt
+        - sample
+        - assembly
+        - species
       properties:
         chromosome:
           type: string
-          maxLength: 10
-          description: Chromosome identifier (e.g. `chr1`, `1`, `X`).
+          maxLength: 50
+          description: Contig identifier (e.g. `chr1`, `1`, `X`).
           example: chr1
         coordinate:
           type: integer
@@ -90,20 +121,41 @@ components:
           example: 1234
         ref:
           type: string
-          maxLength: 50
+          maxLength: 512
           description: Reference allele (VCF REF).
           example: A
         alt:
           type: string
-          maxLength: 50
-          description: Alternate allele(s) (VCF ALT).
+          maxLength: 512
+          description: Alternate allele(s) (VCF ALT; comma-separated if multi-allelic).
           example: T
         gt:
           type: string
           nullable: true
-          maxLength: 10
-          description: Genotype call from the sample FORMAT field (e.g. `0/1`).
+          maxLength: 32
+          description: |
+            Genotype call from FORMAT/GT.
+            Allele indices: 0=REF, 1=first ALT, …
+            `/` unphased, `|` phased.
           example: '0/1'
+        rsid:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: Variant id from VCF ID column when present.
+          example: rs1
+        sample:
+          type: string
+          description: Sample / individual name.
+          example: HG001
+        assembly:
+          type: string
+          description: Reference genome assembly.
+          example: GRCh38
+        species:
+          type: string
+          description: Species scientific name.
+          example: Homo sapiens
       additionalProperties: false
 
     GenotypeListResponse:

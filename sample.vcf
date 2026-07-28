@@ -1,6 +1,12 @@
 ##fileformat=VCFv4.2
-##source=Test
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
-chr1	1234	rs1	A	T	.	.	.	GT
-chr1	1235	rs2	A	C	.	.	.	GT
-chr22	10000	rs3	A	T	.	.	.	GT
+##source=test-task-django demo
+##reference=GRCh38
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr22,length=50818468>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG001
+chr1	1234	rs1	A	T	60	PASS	.	GT:GQ	0/1:99
+chr1	1235	rs2	A	C	50	PASS	.	GT:GQ	1/1:80
+chr1	2000	.	AT	A	40	PASS	.	GT:GQ	0/1:55
+chr22	10000	rs3	G	A,T	70	PASS	.	GT:GQ	1/2:90
