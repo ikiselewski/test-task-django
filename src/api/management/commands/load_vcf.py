@@ -20,6 +20,7 @@ python manage.py load_vcf sample.vcf --sample HG001 --replace
 from __future__ import annotations
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import DatabaseError, OperationalError
 
 from api.services import VcfLoadError, VcfLoader
 
@@ -109,6 +110,13 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
         except OSError as exc:
             raise CommandError(f'Cannot read VCF: {exc}') from exc
+        except OperationalError as exc:
+            raise CommandError(
+                f'Database schema is missing or outdated ({exc}). '
+                'Run: python manage.py migrate'
+            ) from exc
+        except DatabaseError as exc:
+            raise CommandError(f'Database error while loading VCF: {exc}') from exc
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('Load complete'))
