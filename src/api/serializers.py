@@ -1,43 +1,84 @@
 """
 Serializers for genotype API responses.
 
-Kept free of DRF so the project stays within the env.yml dependency set
-(Django only). Class-based views call these helpers explicitly.
+Uses DRF ``serializers.ModelSerializer`` so the public JSON shape is declared
+against the ``Genotype`` model instead of being assembled by hand.
 """
 
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
 
+from rest_framework import serializers
+
 from .models import Genotype
 
 
+class EmptyAsNullCharField(serializers.CharField):
+    """Serialize blank strings as JSON null (OpenAPI nullable fields)."""
+
+    def to_representation(self, value: Any) -> str | None:
+        represented = super().to_representation(value)
+        return represented or None
+
+
+class GenotypeSerializer(serializers.ModelSerializer):
+    """
+    Public genotype row.
+
+    Related biology-graph fields are flattened to match the OpenAPI contract
+    (chromosome, coordinate, ref, sample, assembly, species).
+    """
+
+    chromosome = serializers.CharField(
+        source='coordinate.chromosome.name',
+        read_only=True,
+    )
+    coordinate = serializers.IntegerField(
+        source='coordinate.position',
+        read_only=True,
+    )
+    ref = serializers.CharField(
+        source='ref_allele.sequence',
+        read_only=True,
+    )
+    sample = serializers.CharField(
+        source='sample.name',
+        read_only=True,
+    )
+    assembly = serializers.CharField(
+        source='coordinate.chromosome.assembly.name',
+        read_only=True,
+    )
+    species = serializers.CharField(
+        source='coordinate.chromosome.assembly.species.name',
+        read_only=True,
+    )
+    gt = EmptyAsNullCharField(read_only=True)
+    rsid = EmptyAsNullCharField(read_only=True)
+
+    class Meta:
+        model = Genotype
+        fields = (
+            'chromosome',
+            'coordinate',
+            'ref',
+            'alt',
+            'gt',
+            'rsid',
+            'sample',
+            'assembly',
+            'species',
+        )
+        read_only_fields = fields
+
+
 def serialize_genotype(genotype: Genotype) -> dict[str, Any]:
-    """
-    Serialize one Genotype to the public API shape.
-
-    Core fields match the OpenAPI contract (chromosome, coordinate, ref, alt, gt).
-    Extra fields expose the normalized biology graph (sample, assembly, species).
-    """
-    coordinate = genotype.coordinate
-    chromosome = coordinate.chromosome
-    assembly = chromosome.assembly
-    species = assembly.species
-
-    return {
-        'chromosome': chromosome.name,
-        'coordinate': coordinate.position,
-        'ref': genotype.ref_allele.sequence,
-        'alt': genotype.alt,
-        'gt': genotype.gt or None,
-        'rsid': genotype.rsid or None,
-        'sample': genotype.sample.name,
-        'assembly': assembly.name,
-        'species': species.name,
-    }
+    """Serialize one Genotype to the public API shape."""
+    return dict(GenotypeSerializer(genotype).data)
 
 
 def serialize_genotype_list(genotypes: Iterable[Genotype]) -> dict[str, list[Mapping[str, Any]]]:
     return {
-        'genotypes': [serialize_genotype(g) for g in genotypes],
+        'genotypes': GenotypeSerializer(genotypes, many=True).data,
     }
